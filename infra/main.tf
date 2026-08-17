@@ -99,39 +99,64 @@ resource "aws_s3_bucket" "scripts" {
 /* -------------------------------------------------------------------------- */
 /* Common Lambda Layer (TEST)                                                 */
 /* -------------------------------------------------------------------------- */
+
 resource "local_file" "common_layer_code" {
   filename = "${path.module}/layer/python/common.py"
-  content  = <<-EOF
+
+  content = <<-EOF
 def helper():
     return "Hello from TEST layer"
 EOF
+}
+
+resource "terraform_data" "prepare_dist" {
+  provisioner "local-exec" {
+    command = "mkdir -p ${path.module}/dist"
+  }
 }
 
 data "archive_file" "common_layer_zip" {
   type        = "zip"
   source_dir  = "${path.module}/layer"
   output_path = "${path.module}/dist/common_layer.zip"
+
+  depends_on = [
+    local_file.common_layer_code,
+    terraform_data.prepare_dist
+  ]
 }
 
 /* Upload layer zip to S3 */
 resource "aws_s3_object" "common_layer_zip" {
   bucket = aws_s3_bucket.scripts.id
   key    = "layer/common_layer.zip"
+
   source = data.archive_file.common_layer_zip.output_path
   etag   = data.archive_file.common_layer_zip.output_md5
+
+  depends_on = [
+    data.archive_file.common_layer_zip
+  ]
 }
 
 /* -------------------------------------------------------------------------- */
 /* Lambda Layer Version                                                       */
 /* -------------------------------------------------------------------------- */
+
 resource "aws_lambda_layer_version" "common" {
   layer_name          = "common-layer-${random_string.suffix.result}"
-  s3_bucket           = aws_s3_bucket.scripts.id
-  s3_key              = aws_s3_object.common_layer_zip.key
-  compatible_runtimes = ["python3.9"]
-  source_code_hash    = data.archive_file.common_layer_zip.output_base64sha256
-}
 
+  s3_bucket = aws_s3_bucket.scripts.id
+  s3_key    = aws_s3_object.common_layer_zip.key
+
+  compatible_runtimes = ["python3.9"]
+
+  source_code_hash = data.archive_file.common_layer_zip.output_base64sha256
+
+  depends_on = [
+    aws_s3_object.common_layer_zip
+  ]
+}
 /* -------------------------------------------------------------------------- */
 /* IAM Roles & Policy Attachments (Lambda & Glue)                             */
 /* -------------------------------------------------------------------------- */
