@@ -369,19 +369,9 @@ resource "aws_s3_object" "glue_ecommerce_processing_script_obj" {
   source = local_file.glue_ecommerce_processing_script.filename
 }
 
-# quality_audit
-resource "local_file" "glue_quality_audit_script" {
-  filename = "${path.module}/glue_scripts/quality_audit.py"
-  content  = <<-EOF
-print("TEST script for quality_audit")
-EOF
-}
 
-resource "aws_s3_object" "glue_quality_audit_script_obj" {
-  bucket = aws_s3_bucket.scripts.id
-  key    = "glue/quality_audit.py"
-  source = local_file.glue_quality_audit_script.filename
-}
+
+
 
 # silver_to_gold
 resource "local_file" "glue_silver_to_gold_script" {
@@ -438,17 +428,7 @@ resource "aws_glue_job" "ecommerce_processing" {
   timeout     = 10
 }
 
-resource "aws_glue_job" "quality_audit" {
-  name     = "glue-quality-audit-${random_string.suffix.result}"
-  role_arn = aws_iam_role.glue_role.arn
-  command {
-    name            = "glueetl"
-    script_location = "s3://${aws_s3_bucket.scripts.bucket}/${aws_s3_object.glue_quality_audit_script_obj.key}"
-    python_version  = "3"
-  }
-  max_retries = 0
-  timeout     = 10
-}
+
 
 resource "aws_glue_job" "silver_to_gold" {
   name     = "glue-silver-to-gold-${random_string.suffix.result}"
@@ -548,24 +528,9 @@ resource "aws_sfn_state_machine" "etl_state_machine" {
           }
         }
 
-        Next = "QualityAuditJob"
-      }
-
-      QualityAuditJob = {
-        Type     = "Task"
-        Resource = "arn:aws:states:::glue:startJobRun.sync"
-
-        Parameters = {
-          JobName = aws_glue_job.quality_audit.name
-
-          Arguments = {
-            "--CONFIG_PATH" = local.config_path
-            "--DEPS_PATH"   = local.deps_path
-          }
-        }
-
         Next = "SilverToGoldJob"
       }
+
 
       SilverToGoldJob = {
         Type     = "Task"
