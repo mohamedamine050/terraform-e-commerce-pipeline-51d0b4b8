@@ -504,61 +504,103 @@ resource "aws_sfn_state_machine" "etl_state_machine" {
   definition = jsonencode({
     Comment = "Data lake ETL orchestrator"
     StartAt = "ProducerLambda"
+
     States = {
+
       ProducerLambda = {
         Type     = "Task"
         Resource = aws_lambda_function.producer.arn
         Next     = "StreamerLambda"
       }
+
       StreamerLambda = {
         Type     = "Task"
         Resource = aws_lambda_function.streamer.arn
         Next     = "LandingIngestJob"
       }
+
       LandingIngestJob = {
         Type     = "Task"
         Resource = "arn:aws:states:::glue:startJobRun.sync"
+
         Parameters = {
           JobName = aws_glue_job.landing_ingest.name
+
+          Arguments = {
+            "--CONFIG_PATH" = local.config_path
+            "--DEPS_PATH"   = local.deps_path
+          }
         }
+
         Next = "EcommerceProcessingJob"
       }
+
       EcommerceProcessingJob = {
         Type     = "Task"
         Resource = "arn:aws:states:::glue:startJobRun.sync"
+
         Parameters = {
           JobName = aws_glue_job.ecommerce_processing.name
+
+          Arguments = {
+            "--CONFIG_PATH" = local.config_path
+            "--DEPS_PATH"   = local.deps_path
+          }
         }
+
         Next = "QualityAuditJob"
       }
+
       QualityAuditJob = {
         Type     = "Task"
         Resource = "arn:aws:states:::glue:startJobRun.sync"
+
         Parameters = {
           JobName = aws_glue_job.quality_audit.name
+
+          Arguments = {
+            "--CONFIG_PATH" = local.config_path
+            "--DEPS_PATH"   = local.deps_path
+          }
         }
+
         Next = "SilverToGoldJob"
       }
+
       SilverToGoldJob = {
         Type     = "Task"
         Resource = "arn:aws:states:::glue:startJobRun.sync"
+
         Parameters = {
           JobName = aws_glue_job.silver_to_gold.name
+
+          Arguments = {
+            "--CONFIG_PATH" = local.config_path
+            "--DEPS_PATH"   = local.deps_path
+          }
         }
+
         Next = "RdsLoadJob"
       }
+
       RdsLoadJob = {
         Type     = "Task"
         Resource = "arn:aws:states:::glue:startJobRun.sync"
+
         Parameters = {
           JobName = aws_glue_job.rds_load.name
+
+          Arguments = {
+            "--CONFIG_PATH" = local.config_path
+            "--DEPS_PATH"   = local.deps_path
+          }
         }
+
         End = true
       }
     }
   })
 }
-
 /* -------------------------------------------------------------------------- */
 /* Athena Workgroup                                                          */
 /* -------------------------------------------------------------------------- */
