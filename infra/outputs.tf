@@ -75,15 +75,7 @@ output "glue_ecommerce_processing_script_s3_uri" {
   value = "s3://${aws_s3_bucket.scripts.bucket}/${aws_s3_object.glue_ecommerce_processing_script_obj.key}"
 }
 
-output "glue_quality_audit_name" {
-  value = aws_glue_job.quality_audit.name
-}
-output "glue_quality_audit_arn" {
-  value = aws_glue_job.quality_audit.arn
-}
-output "glue_quality_audit_script_s3_uri" {
-  value = "s3://${aws_s3_bucket.scripts.bucket}/${aws_s3_object.glue_quality_audit_script_obj.key}"
-}
+
 
 output "glue_silver_to_gold_name" {
   value = aws_glue_job.silver_to_gold.name
